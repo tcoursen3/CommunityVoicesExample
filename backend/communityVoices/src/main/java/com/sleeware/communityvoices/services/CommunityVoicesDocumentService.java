@@ -1,13 +1,7 @@
 package com.sleeware.communityvoices.services;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -28,15 +22,12 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CommunityVoicesDocumentService {
 
     private static final Logger logger = LoggerFactory.getLogger(CommunityVoicesDocumentService.class);
-    private static final DateTimeFormatter FILE_TIMESTAMP =
-            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneOffset.UTC);
     private static final String ALL_DOCUMENTS_QUERY = "community voices";
     private static final int DEFAULT_VECTOR_STORE_TOP_K = 10_000;
     private static final int MAX_CONTEXT_CHARS = 14_000;
@@ -75,36 +66,29 @@ public class CommunityVoicesDocumentService {
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
     private final Clock clock;
-    private final Path outputDirectory;
 
     @Autowired
     public CommunityVoicesDocumentService(
             VectorStore vectorStore,
-            ChatClient.Builder chatClientBuilder,
-            @Value("${community-voices.documents.output-directory:build/reports/community-voices}") Path outputDirectory) {
-        this(vectorStore, chatClientBuilder.build(), Clock.systemUTC(), outputDirectory);
+            ChatClient.Builder chatClientBuilder) {
+        this(vectorStore, chatClientBuilder.build(), Clock.systemUTC());
     }
 
-    CommunityVoicesDocumentService(VectorStore vectorStore, ChatClient chatClient, Clock clock, Path outputDirectory) {
+    CommunityVoicesDocumentService(VectorStore vectorStore, ChatClient chatClient, Clock clock) {
         this.vectorStore = vectorStore;
         this.chatClient = chatClient;
         this.clock = clock;
-        this.outputDirectory = outputDirectory;
     }
 
-    public Path GenerateDocument() {
-        try {
-            List<Document> documents = retrieveCommunityDocuments();
-            String report = buildReport(documents);
-            Path reportPath = writeReport(report);
-            logger.info("Generated Community Voices document: {}", reportPath.toAbsolutePath());
-            return reportPath;
-        } catch (IOException ex) {
-            throw new IllegalStateException("Unable to write Community Voices document", ex);
-        }
+    public String GenerateDocument() {
+        List<Document> documents = retrieveCommunityDocuments();
+        String report = buildReport(documents);
+        String htmlReport = renderHtmlReport(report);
+        logger.info("Generated Community Voices document");
+        return htmlReport;
     }
 
-    public Path generateDocument() {
+    public String generateDocument() {
         return GenerateDocument();
     }
 
@@ -472,13 +456,6 @@ public class CommunityVoicesDocumentService {
         } catch (RuntimeException ex) {
             return null;
         }
-    }
-
-    Path writeReport(String report) throws IOException {
-        Files.createDirectories(outputDirectory);
-        Path reportPath = outputDirectory.resolve("community-voices-%s.html".formatted(FILE_TIMESTAMP.format(Instant.now(clock))));
-        Files.writeString(reportPath, renderHtmlReport(report), StandardCharsets.UTF_8);
-        return reportPath;
     }
 
     String renderHtmlReport(String report) {

@@ -1,6 +1,5 @@
 package com.sleeware.communityvoices.jobs;
 
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -14,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sleeware.communityvoices.classifiers.RedditPostClassifier;
-import com.sleeware.communityvoices.clients.RedditClient;
 import com.sleeware.communityvoices.entities.ollama.OllamaClassificationResult;
 import com.sleeware.communityvoices.entities.reddit.RedditApiPostData;
 import com.sleeware.communityvoices.entities.reddit.RedditApiResponse;
@@ -35,6 +33,7 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClient.Builder;
 import org.springframework.web.client.RestClientException;
 
 @Component
@@ -52,25 +51,28 @@ public class ScrapeCommunityJob {
 
     private final VectorStore vectorStore;
     private final Clock clock;
-    private RedditClient redditClient;
-    private RedditPostClassifier redditPostClassifier;
-    private CommunityVoicesDocumentService communityVoicesDocumentService;
+    private final RestClient redditClient;
+    private final RedditPostClassifier redditPostClassifier;
+    private final CommunityVoicesDocumentService communityVoicesDocumentService;
 
     @Autowired
-    public ScrapeCommunityJob(VectorStore vectorStore, RedditPostClassifier redditPostClassifier, CommunityVoicesDocumentService communityVoicesDocumentService) {
+    public ScrapeCommunityJob(
+            VectorStore vectorStore,
+            RedditPostClassifier redditPostClassifier,
+            CommunityVoicesDocumentService communityVoicesDocumentService,
+            Builder restClientBuilder) {
         this.vectorStore = vectorStore;
         this.redditPostClassifier = redditPostClassifier;
         this.communityVoicesDocumentService = communityVoicesDocumentService;
 
-        this.redditClient = new RedditClient();
-        //this.redditClient = restClientBuilder
-        //        .baseUrl("https://www.reddit.com")
-        //        .defaultHeader(HttpHeaders.USER_AGENT, REDDIT_USER_AGENT)
-        //        .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-        //        .defaultHeader(HttpHeaders.ACCEPT_LANGUAGE, "en-US,en;q=0.9")
-        //        .defaultHeader(HttpHeaders.CACHE_CONTROL, "no-cache")
-        //        .defaultHeader("Cookie","")
-        //        .build();
+        this.redditClient = restClientBuilder
+                .baseUrl("https://www.reddit.com")
+                .defaultHeader(HttpHeaders.USER_AGENT, REDDIT_USER_AGENT)
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader(HttpHeaders.ACCEPT_LANGUAGE, "en-US,en;q=0.9")
+                .defaultHeader(HttpHeaders.CACHE_CONTROL, "no-cache")
+                .defaultHeader("Cookie","csv=2; edgebucket=6DkEuyAC80F2K9feoF; loid=000000002gz8tx9fdi.2.1782067344176.Z0FBQUFBQnFPRENRSFZ5TFZWOWJkaVJFU05VTy12ZW43UFYtWEszbGVpQjdqNDRraUhSVGVLS0cyNkFRVmZTZmpwTXZhMW1Qdm40cEVCbElSQzVfZjFLb1R0QnZ4bGRFYVRvUU11UmtXVEZBSGstWjBadENiOGF0ZHA0OE83bVhBVkhDdlRwbV96cEs; session_tracker=dqnrbinobcnbhornne.0.1782068273824.Z0FBQUFBQnFPRFF6NGk2dVlQWGRMYmxwd25aS2x5UWVveWVKYTRQeVBWS0g5WWZ3Q25pQ1Z4SnBjbUpqZFRMVURYMHdTZ1c5T1RYSk96ZHVIZmF2LXFTRnlPVWpiOVV1WU40S0RXS0RBZDlkU3RrenhNZ29vekhyWTBCRmRWNnZLYnczeVU2MFBFX2U")
+                .build();
         this.clock = Clock.systemUTC();
 
     }
@@ -89,8 +91,8 @@ public class ScrapeCommunityJob {
             parseRedditChannel( "r/MechanicalKeyboards", 7 );
 
             // Generate Report
-            Path path = communityVoicesDocumentService.GenerateDocument();
-            logger.info( path.toString() );
+            String reportHtml = communityVoicesDocumentService.GenerateDocument();
+            logger.info("Generated Community Voices report HTML ({} chars)", reportHtml.length());
 
         } finally {
             running.set(false);

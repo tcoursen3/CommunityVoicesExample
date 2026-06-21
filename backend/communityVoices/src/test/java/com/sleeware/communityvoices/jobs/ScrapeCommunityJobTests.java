@@ -11,6 +11,8 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sleeware.communityvoices.classifiers.RedditPostClassifier;
+import com.sleeware.communityvoices.services.CommunityVoicesDocumentService;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -26,12 +28,16 @@ class ScrapeCommunityJobTests {
     @Test
     void parseRedditChannelReturnsRecentPostTitles() throws Exception {
         RestClient.Builder restClientBuilder = RestClient.builder();
+        CommunityVoicesDocumentService communityVoicesDocumentService = new CommunityVoicesDocumentService();
+        RedditPostClassifier redditPostClassifier = new RedditPostClassifier();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restClientBuilder).build();
         CapturingVectorStore vectorStore = new CapturingVectorStore();
         ScrapeCommunityJob job = new ScrapeCommunityJob(
-                restClientBuilder,
-                Clock.fixed(Instant.parse("2026-06-19T12:00:00Z"), ZoneOffset.UTC),
-                vectorStore);
+                vectorStore,
+                redditPostClassifier,
+                communityVoicesDocumentService,
+                restClientBuilder
+                );
 
         server.expect(requestTo("https://www.reddit.com/r/java/new.json?limit=100&raw_json=1"))
                 .andExpect(header(HttpHeaders.USER_AGENT,
