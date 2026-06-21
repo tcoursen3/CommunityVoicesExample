@@ -1,0 +1,40 @@
+<header class="toolbar">
+  <button
+    type="button"
+    class="toolbar-button"
+    aria-label="Refresh report"
+    title="Refresh report"
+    (click)="loadReport()"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 3v5h-5" />
+      <path d="M3 21v-5h5" />
+      <path d="M20.49 9A9 9 0 0 0 5.64 5.64L3 8" />
+      <path d="M3.51 15A9 9 0 0 0 18.36 18.36L21 16" />
+    </svg>
+  </button>
+</header>
+
+<main class="page">
+  @if (isLoading) {
+    <section class="status-panel">Loading report...</section>
+  } @else if (errorMessage) {
+    <section class="status-panel status-panel-error">{{ errorMessage }}</section>
+  } @else if (reportHtml) {
+    <iframe
+      #reportFrame
+      class="report-frame"
+      title="Community Voices report"
+    ></iframe>
+  } @else {
+    <section class="status-panel">No report available.</section>
+  }
+</main>
