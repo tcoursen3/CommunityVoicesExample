@@ -13,4 +13,10 @@ export class ReportService {
       responseType: 'text'
     });
   }
+
+  getNonRagReportHtml(): Observable<string> {
+    return this.http.get('/generate-non-rag-report', {
+      responseType: 'text'
+    });
+  }
 }

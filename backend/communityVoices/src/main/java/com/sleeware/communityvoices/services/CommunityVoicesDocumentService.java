@@ -88,10 +88,6 @@ public class CommunityVoicesDocumentService {
         return htmlReport;
     }
 
-    public String generateDocument() {
-        return GenerateDocument();
-    }
-
     List<Document> retrieveCommunityDocuments() {
         int topK = vectorStoreDocumentCount();
         if (topK <= 0) {
@@ -164,13 +160,15 @@ public class CommunityVoicesDocumentService {
         CommunityStats stats = summarize(documents);
         String context = buildRagContext(documents);
         String prompt = """
-                Create a plain text Community Voices Document from the Redis Vector RAG context.
+                Create a plain text Community Voices Document for the Reddit Community r/MechanicalKeyboards enhanced with the Redis Vector RAG context.
 
                 Requirements:
                 - Title the report "Community Voices Document".
                 - Include generated timestamp and total source posts reviewed.
                 - Add an "Executive Summary" section immediately after the title and generated timestamp.
-                - In "Executive Summary", include 3-5 concise bullets covering the main topics, strongest community signals, and any notable trend.
+                - Add a "Methodology" section immediately after "Executive Summary" explaining that the report is based on Redis Vector Store retrieval.
+                - Add a "Dominant Themes" section
+                - Add a "Pain Points" section
                 - Include "Date Range Covered" after "Executive Summary" using the supplied date range metric.
                 - Include "Most Active Authors" and identify which author posted the most.
                 - Include "Top 10 Topics" with one topic per line in the format "- topic (count)".
@@ -178,9 +176,10 @@ public class CommunityVoicesDocumentService {
                 - Include "Most Discussed" using the supplied comment-count metrics.
                 - Include "Highest Engagement" using the supplied engagement metrics.
                 - Include "Community Signals" with notable needs, questions, complaints, or buying intent.
+                - Include "Predictions" with potential future trends or developments based on the data.
                 - Include "Source Notes" explaining that the report is based on Redis Vector Store retrieval.
                 - Use concise, factual prose. Do not invent exact counts beyond the metrics supplied below.
-                - Return plain text only. No Markdown tables.
+                - Return HTML only. No Markdown tables.
 
                 Metrics:
                 %s

@@ -1,6 +1,8 @@
 import { ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { ReportService } from './report.service';
 
+type ReportMode = 'rag' | 'non-rag';
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
@@ -14,6 +16,7 @@ export class App implements OnInit {
   reportHtml = '';
   errorMessage = '';
   isLoading = false;
+  activeReportMode: ReportMode = 'rag';
 
   @ViewChild('reportFrame')
   set reportFrame(frame: ElementRef<HTMLIFrameElement> | undefined) {
@@ -25,11 +28,16 @@ export class App implements OnInit {
     this.loadReport();
   }
 
-  loadReport(): void {
+  loadReport(reportMode: ReportMode = this.activeReportMode): void {
+    this.activeReportMode = reportMode;
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.reportService.getReportHtml().subscribe({
+    const reportRequest = reportMode === 'rag'
+      ? this.reportService.getReportHtml()
+      : this.reportService.getNonRagReportHtml();
+
+    reportRequest.subscribe({
       next: (reportHtml) => {
         if (this.isAppShellHtml(reportHtml)) {
           this.reportHtml = '';

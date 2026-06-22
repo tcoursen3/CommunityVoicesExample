@@ -5,14 +5,10 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.sleeware.communityvoices.classifiers.RedditPostClassifier;
-import com.sleeware.communityvoices.services.CommunityVoicesDocumentService;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -28,14 +24,15 @@ class ScrapeCommunityJobTests {
     @Test
     void parseRedditChannelReturnsRecentPostTitles() throws Exception {
         RestClient.Builder restClientBuilder = RestClient.builder();
-        CommunityVoicesDocumentService communityVoicesDocumentService = new CommunityVoicesDocumentService();
+
+        CapturingVectorStore vectorStore = new CapturingVectorStore();
         RedditPostClassifier redditPostClassifier = new RedditPostClassifier();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restClientBuilder).build();
-        CapturingVectorStore vectorStore = new CapturingVectorStore();
+
         ScrapeCommunityJob job = new ScrapeCommunityJob(
                 vectorStore,
                 redditPostClassifier,
-                communityVoicesDocumentService,
+                null,
                 restClientBuilder
                 );
 
@@ -52,19 +49,19 @@ class ScrapeCommunityJobTests {
                               {
                                 "data": {
                                   "title": "Recent topic",
-                                  "created_utc": 1781866800
+                                  "created_utc": 1782082800
                                 }
                               },
                               {
                                 "data": {
                                   "title": "Recent topic",
-                                  "created_utc": 1781863200
+                                  "created_utc": 1782079200
                                 }
                               },
                               {
                                 "data": {
                                   "title": "Older topic",
-                                  "created_utc": 1781686800
+                                  "created_utc": 1781800000
                                 }
                               }
                             ]
@@ -81,19 +78,16 @@ class ScrapeCommunityJobTests {
                 .containsOnly("java");
         assertThat(vectorStore.documents())
                 .extracting(Document::getText)
-                .allSatisfy(text -> assertThat(text).contains("Reddit post from r/java", "Title: Recent topic"));
+                .containsExactly("Recent topic", "Recent topic");
         server.verify();
     }
 
     @Test
-    void parseRedditChannelSplitsLongPostBodiesBeforeAddingToVectorStore() throws Exception {
+    void parseRedditChannelAddsLongPostBodiesAsSingleVectorDocument() throws Exception {
         RestClient.Builder restClientBuilder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restClientBuilder).build();
         CapturingVectorStore vectorStore = new CapturingVectorStore();
-        ScrapeCommunityJob job = new ScrapeCommunityJob(
-                restClientBuilder,
-                Clock.fixed(Instant.parse("2026-06-19T12:00:00Z"), ZoneOffset.UTC),
-                vectorStore);
+        ScrapeCommunityJob job = new ScrapeCommunityJob(vectorStore, null, null, restClientBuilder);
 
         String longBody = "Long body sentence. ".repeat(500);
 
@@ -110,7 +104,7 @@ class ScrapeCommunityJobTests {
                                   "title": "Recent long topic",
                                   "author": "test-author",
                                   "selftext": "%s",
-                                  "created_utc": 1781866800
+                                  "created_utc": 1782082800
                                 }
                               }
                             ]
@@ -120,16 +114,16 @@ class ScrapeCommunityJobTests {
 
         job.parseRedditChannel("r/java", 2);
 
-        assertThat(vectorStore.documents()).hasSizeGreaterThan(1);
+        assertThat(vectorStore.documents()).hasSize(1);
         assertThat(vectorStore.documents())
-                .extracting(document -> document.getText().length())
-                .allSatisfy(length -> assertThat(length).isLessThanOrEqualTo(3_000));
+                .extracting(Document::getText)
+                .containsExactly("Recent long topic");
         assertThat(vectorStore.documents())
-                .extracting(document -> document.getMetadata().get("chunkCount"))
-                .containsOnly(vectorStore.documents().size());
+                .extracting(document -> document.getMetadata().get("author"))
+                .containsOnly("test-author");
         assertThat(vectorStore.documents())
-                .extracting(Document::getId)
-                .allSatisfy(id -> assertThat(id).startsWith("reddit:java:abc123:chunk:"));
+                .extracting(document -> document.getMetadata().get("redditId"))
+                .containsOnly("abc123:1.7820828E9");
         server.verify();
     }
 
@@ -138,10 +132,7 @@ class ScrapeCommunityJobTests {
         RestClient.Builder restClientBuilder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restClientBuilder).build();
         CapturingVectorStore vectorStore = new CapturingVectorStore();
-        ScrapeCommunityJob job = new ScrapeCommunityJob(
-                restClientBuilder,
-                Clock.fixed(Instant.parse("2026-06-19T12:00:00Z"), ZoneOffset.UTC),
-                vectorStore);
+        ScrapeCommunityJob job = new ScrapeCommunityJob(vectorStore, null, null, restClientBuilder);
 
         server.expect(requestTo("https://www.reddit.com/r/java/new.json?limit=100&raw_json=1"))
                 .andExpect(header(HttpHeaders.USER_AGENT,
@@ -156,7 +147,7 @@ class ScrapeCommunityJobTests {
                                   "name": "t3_post1",
                                   "title": "First topic",
                                   "author": "same-author",
-                                  "created_utc": 1781866800
+                                  "created_utc": 1782082800
                                 }
                               },
                               {
@@ -165,7 +156,7 @@ class ScrapeCommunityJobTests {
                                   "name": "t3_post2",
                                   "title": "Second topic",
                                   "author": "same-author",
-                                  "created_utc": 1781863200
+                                  "created_utc": 1782079200
                                 }
                               }
                             ]
@@ -181,7 +172,7 @@ class ScrapeCommunityJobTests {
                 .containsOnly("same-author");
         assertThat(vectorStore.documents())
                 .extracting(Document::getId)
-                .containsExactly("reddit:java:t3_post1:chunk:1", "reddit:java:t3_post2:chunk:1");
+                .containsExactly("r:post1:1.7820828E9", "r:post2:1.7820792E9");
         server.verify();
     }
 

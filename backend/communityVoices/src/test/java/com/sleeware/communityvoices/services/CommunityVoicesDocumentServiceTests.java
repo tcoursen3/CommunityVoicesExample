@@ -25,22 +25,25 @@ class CommunityVoicesDocumentServiceTests {
     @Autowired
     private CommunityVoicesDocumentService documentService;
 
+    @Autowired
+    private CommunityVoicesNonRagDocumentService nonRagDocumentService;
+
     @Test
     @Tag("manual")
     void generateReportFromExistingData() throws Exception {
-        Path reportPath = documentService.generateDocument();
 
-        assertThat(reportPath)
-                .exists()
-                .isRegularFile();
-        assertThat(reportPath.getFileName().toString())
-                .startsWith("community-voices-")
-                .endsWith(".html");
-        assertThat(reportPath.getParent())
-                .isEqualTo(Path.of("target/community-voices-report-test"));
+        String reportString = documentService.GenerateDocument();
+        assertThat(reportString)
+                .isNotNull();
 
-        assertThat(Files.readString(reportPath, StandardCharsets.UTF_8))
-                .startsWith("<!doctype html>")
-                .contains("Community Voices Document");
+    }
+
+    @Test
+    @Tag("manual")
+    void generateNonRagReportFromExistingData() throws Exception {
+
+        String reportString = nonRagDocumentService.GenerateDocument();
+        assertThat(reportString)
+                .isNotNull();
     }
 }

@@ -26,6 +26,8 @@ services:
     command: sh -c "npm ci && npm run start -- --host 0.0.0.0"
     volumes:
       - ../../webapp:/app
+    environment:
+      API_PROXY_TARGET: http://spring-boot-app:8080
     depends_on:
       - spring-boot-app
     ports:

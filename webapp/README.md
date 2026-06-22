@@ -12,6 +12,12 @@ ng serve
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
+By default, the development proxy forwards `/generate-report` and `/generate-non-rag-report` to `http://localhost:8080`, which matches a locally running backend. To point the webapp at a different backend during development, set `API_PROXY_TARGET` before starting Angular:
+
+```bash
+API_PROXY_TARGET=http://spring-boot-app:8080 ng serve
+```
+
 ## Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
