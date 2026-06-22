@@ -1,0 +1,37 @@
+services:
+  ollama:
+    container_name: community-voices-ollama
+    hostname: community-voices-ollama
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  ollama-model-init:
+    container_name: community-voices-ollama-model-init
+    image: ollama/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        ollama pull mxbai-embed-large
+        ollama pull llama3.1
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  ollama-data:
