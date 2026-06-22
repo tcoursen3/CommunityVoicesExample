@@ -1,4 +1,36 @@
 services:
+  spring-boot-app:
+    container_name: community-voices-api
+    hostname: community-voices-api
+    image: maven:3.9.11-eclipse-temurin-21
+    restart: unless-stopped
+    working_dir: /app
+    command: mvn -Dmaven.test.skip=true spring-boot:run
+    volumes:
+      - ./:/app
+      - maven-repo:/root/.m2
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+
+  webapp:
+    container_name: community-voices-webapp
+    hostname: community-voices-webapp
+    image: node:22-bookworm
+    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm ci && npm run start -- --host 0.0.0.0"
+    volumes:
+      - ../../webapp:/app
+    depends_on:
+      - spring-boot-app
+    ports:
+      - "4200:4200"
+
   redis:
     container_name: redis
     hostname: redis
@@ -16,3 +48,6 @@ services:
       - REDIS_HOSTS=local:redis:6379
     ports:
       - "8089:8081"
+
+volumes:
+  maven-repo:

@@ -1,6 +1,6 @@
 {
   "/generate-report": {
-    "target": "http://localhost:8080",
+    "target": "http://spring-boot-app:8080",
     "secure": false,
     "changeOrigin": true
   }
